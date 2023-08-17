@@ -1,5 +1,5 @@
 ## Rebuttal
-<div align=left><img src="https://github.com/zaixizhang/FAIR/blob/main/rebuttal/vina.png" width="400"/></div><div align=right><img src="https://github.com/zaixizhang/FAIR/blob/main/rebuttal/vina1.png" width="400"/></div>
+<div align=center><img src="https://github.com/zaixizhang/FAIR/blob/main/rebuttal/vina.png" width="400"/><img src="https://github.com/zaixizhang/FAIR/blob/main/rebuttal/vina1.png" width="400"/></div>
 Figure 1. 
 
 This is a preliminary version of FAIR for reference. 
