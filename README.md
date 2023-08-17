@@ -1,6 +1,6 @@
 ## Rebuttal
 <div align=center><img src="https://github.com/zaixizhang/FAIR/blob/main/rebuttal/vina.png" width="400"/><img src="https://github.com/zaixizhang/FAIR/blob/main/rebuttal/vina1.png" width="400"/></div>
-Figure 1. 
+Figure 1. Box plot Vina scores with re-docking (left) and without re-docking (right) on the CrossDocked dataset.
 
 This is a preliminary version of FAIR for reference. 
 ## Install conda environment via conda yaml file
