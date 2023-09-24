@@ -19,7 +19,7 @@ python train.py
 ```
 
 ## Testing
-
+A checkpoint of our model is provided in the `checkpoint` folder.
 ```
 python test.py
 ```
