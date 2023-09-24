@@ -13,7 +13,7 @@ Please refer to [`README.md`](./data/README.md) in the `data` folder.
 
 
 ## Training
-
+The model hyperparameters can be adjusted in `config`.
 ```
 python train.py
 ```
