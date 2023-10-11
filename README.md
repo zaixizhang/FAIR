@@ -11,7 +11,7 @@ conda activate fair_env
 ## Datasets
 Please refer to [`README.md`](./data/README.md) in the `data` folder.
 
-The data used for training / evaluating the model are organized in the [data](https://drive.google.com/drive/folders/1j21cc7-97TedI7eK?usp=share_link) Google Drive folder.
+The data used for training / evaluating the model are organized in the [data](https://drive.google.com/drive/folders/1cyhwpmm8a3Z3i8yCms0BRW5tIMalMXex?usp=sharing) Google Drive folder.
 
 For a quick reproduction, you can download the preprocessed lmdb file and split file:
 * `crossdocked_pocket10_processed_final.lmdb`
