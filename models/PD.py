@@ -1,7 +1,9 @@
 import copy
 import sys
+
 sys.path.append("..")
 import numpy as np
+from rdkit import RDConfig
 import os
 import torch
 import torch.nn as nn
@@ -78,7 +80,7 @@ def interpolation_init(pred_X, residue_mask, backbone_pos, atom2residue, protein
             offset += len(residue_mask_i)
             continue
         else:
-            residue_index = torch.arange(len(residue_mask_i))
+            residue_index = torch.arange(len(residue_mask_i)).to(protein_atom_batch.device)
             front = residue_index[~residue_mask_i][:2]
             end = residue_index[~residue_mask_i][-2:]
             near = nearest(residue_mask_i)
@@ -190,7 +192,7 @@ class Pocket_Design(Module):
             label_ligand, pred_ligand = copy.deepcopy(batch['ligand_pos']), copy.deepcopy(batch['ligand_pos'])
             pred_ligand += torch.randn_like(pred_ligand).to(self.device) * ratio * 0.2
             pred_X[atom_mask] += torch.randn_like(batch['protein_pos'][atom_mask]).to(self.device) * ratio * 0.3
-            index = torch.arange(len(batch['amino_acid']))[batch['protein_edit_residue']]
+            index = torch.arange(len(batch['amino_acid']), device=self.device).to(batch['amino_acid'].device)[batch['protein_edit_residue']]
             for k in range(len(batch['amino_acid'])):
                 mask = batch['atom2residue'] == k
                 if k in index:
@@ -233,7 +235,7 @@ class Pocket_Design(Module):
         batch['protein_pos'][batch['edit_backbone']] = pred_X[atom_mask]
         select = torch.argmax(self.Softmax(self.pred_res_type), 1).view(-1)
         self.pred_res_type = torch.zeros_like(self.pred_res_type, device=self.device)
-        self.pred_res_type[torch.arange(len(select)), select] = 1
+        self.pred_res_type[torch.arange(len(select), device=self.device), select] = 1
 
         # full atom
         batch['amino_acid'][batch['protein_edit_residue']] = select + 1
@@ -267,7 +269,7 @@ class Pocket_Design(Module):
                                                                   external_index=external_index1, backbone=False)
             batch['amino_acid'][batch['random_mask_residue']] = torch.argmax(self.residue_mlp(h_residue[batch['random_mask_residue']]), dim=1) + 1
             self.pred_res_type = torch.zeros_like(self.pred_res_type, device=self.device)
-            self.pred_res_type[torch.arange(len(self.pred_res_type)), batch['amino_acid'][residue_mask] - 1] = 1
+            self.pred_res_type[torch.arange(len(self.pred_res_type), device=self.device), batch['amino_acid'][residue_mask] - 1] = 1
             batch = random_mask(batch, device=self.device, mask=False)
 
         aar = (label_S[residue_mask] == batch['amino_acid'][residue_mask]).sum() / len(label_S[residue_mask])
@@ -288,7 +290,7 @@ def random_mask(batch, device, mask=True):
         batch['random_mask_residue'] = torch.cat(tmp, dim=0)
 
         # remove side chains for the masked atoms
-        index = torch.arange(len(batch['amino_acid']))[batch['random_mask_residue']]
+        index = torch.arange(len(batch['amino_acid']), device=device)[batch['random_mask_residue']]
         for key in ['protein_pos', 'protein_atom_feature']:
             tmp = []
             for k in range(batch['atom2residue'].max() + 1):
@@ -309,7 +311,7 @@ def random_mask(batch, device, mask=True):
         batch['random_mask_atom'] = torch.repeat_interleave(batch['random_mask_residue'], batch['residue_natoms'], dim=0)
     else:
         # reset protein pos and feature
-        index = torch.arange(len(batch['amino_acid']))[batch['random_mask_residue']]
+        index = torch.arange(len(batch['amino_acid']), device = device)[batch['random_mask_residue']]
         num_residues = batch['atom2residue'].max() + 1
         pos_tmp, feature_tmp, natoms_tmp = [], [], []
         for k in range(num_residues):
@@ -339,7 +341,7 @@ def random_mask(batch, device, mask=True):
     repeats = torch.tensor([batch['residue_natoms'][batch['amino_acid_batch'] == i].sum() for i in range(num_protein)])
     batch['protein_atom_batch'] = torch.repeat_interleave(torch.arange(num_protein), repeats).to(device)
     batch['edit_backbone'] = copy.deepcopy(batch['protein_edit_atom'])
-    index = torch.arange(len(batch['amino_acid']))[batch['protein_edit_residue']]
+    index = torch.arange(len(batch['amino_acid']), device = device)[batch['protein_edit_residue']]
     for k in range(len(batch['amino_acid'])):
         mask = batch['atom2residue'] == k
         if k in index:
