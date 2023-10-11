@@ -29,4 +29,8 @@ A checkpoint of our model is provided in the `checkpoint` folder.
 ```
 python test.py
 ```
+Expected results on the CrossDocked dataset:
 
+| AAR  | RMSD   |
+|-------|-------|
+| 40.8\% ± 10.9 \% | 1.44 ± 0.06 |
