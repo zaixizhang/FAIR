@@ -34,3 +34,13 @@ Expected results on the CrossDocked dataset:
 | AAR  | RMSD   |
 |-------|-------|
 | 40.8\% ± 10.9 \% | 1.44 ± 0.06 |
+
+## Citation
+```
+@article{zhang2023full,
+  title={Full-Atom Protein Pocket Design via Iterative Refinement},
+  author={Zhang, Zaixi and Lu, Zepu and Hao, Zhongkai and Zitnik, Marinka and Liu, Qi},
+  journal={NeurIPS},
+  year={2023}
+}
+```
