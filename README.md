@@ -15,7 +15,7 @@ The data used for training / evaluating the model are organized in the [data](ht
 
 For a quick reproduction, you can download the preprocessed lmdb file and split file:
 * `crossdocked_pocket10_processed_final.lmdb`
-* `crossdocked_pocket10_split.pt`
+* `split_by_name.pt`
 Then place these files in the `data` folder.
 
 ## Training
