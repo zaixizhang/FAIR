@@ -1,4 +1,4 @@
-# Full Atom Protein Pocket Design via Iterative Refinement (FAIR) NeurIPS 2023 Spotlight
+# Full Atom Protein Pocket Design via Iterative Refinement (FAIR) NeurIPS 2023 Spotlight [pdf](https://arxiv.org/abs/2310.02553)
 
 <div align=center><img src="https://github.com/zaixizhang/FAIR/blob/main/FAIR.png" width="700"/></div>
 
