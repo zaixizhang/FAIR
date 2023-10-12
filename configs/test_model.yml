@@ -36,4 +36,4 @@ train:
 dataset:
   name: pl
   path: ./data/crossdocked_pocket10
-  split: ./data/split.pt
+  split: ./data/split_by_name.pt
