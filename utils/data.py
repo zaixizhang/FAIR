@@ -121,3 +121,64 @@ def collate_mols(mol_dicts):
     return data_batch
 
 
+def collate_mols_test(mol_dicts):
+    data_batch = {}
+    batch_size = len(mol_dicts)
+    for key in ['protein_pos', 'protein_atom_feature', 'ligand_pos', 'ligand_atom_feature',
+                'protein_edit_residue', 'amino_acid', 'res_idx', 'residue_natoms', 'protein_atom_to_aa_type']:
+        data_batch[key] = torch.cat([mol_dict[key] for mol_dict in mol_dicts], dim=0)
+    # residue pos
+    data_batch['residue_pos'] = \
+        torch.cat([torch.cat([mol_dict[key] for mol_dict in mol_dicts], dim=0).unsqueeze(0) for key in ['pos_N', 'pos_CA', 'pos_C', 'pos_O']], dim=0).permute(1,0,2)
+
+    data_batch['atom2residue'] = torch.repeat_interleave(torch.arange(len(data_batch['residue_natoms'])), data_batch['residue_natoms'])
+
+    # follow batch
+    for key in ['protein_atom_feature', 'ligand_atom_feature', 'amino_acid']:
+        repeats = torch.tensor([len(mol_dict[key]) for mol_dict in mol_dicts])
+        if key == 'amino_acid':
+            data_batch[key + '_batch'] = torch.repeat_interleave(torch.arange(batch_size), repeats)
+        else:
+            data_batch[key[:-8] + '_batch'] = torch.repeat_interleave(torch.arange(batch_size), repeats)
+
+    # backbone protein for the first stage
+    index = torch.arange(len(data_batch['amino_acid']))[data_batch['protein_edit_residue']]
+    for key in ['protein_pos', 'protein_atom_feature', 'protein_atom_batch']:
+        tmp = []
+        for k in range(data_batch['atom2residue'].max()+1):
+            mask = data_batch['atom2residue'] == k
+            if k in index:
+                tmp.append(data_batch[key][mask][:4])
+            else:
+                tmp.append(data_batch[key][mask])
+        data_batch[key+'_backbone'] = torch.cat(tmp, dim=0)
+
+    data_batch['residue_natoms_backbone'] = data_batch['residue_natoms']
+    data_batch['residue_natoms_backbone'][data_batch['protein_edit_residue']] = 4
+    data_batch['protein_edit_atom'] = torch.repeat_interleave(data_batch['protein_edit_residue'], data_batch['residue_natoms'], dim=0)
+    data_batch['protein_edit_atom_backbone'] = torch.repeat_interleave(data_batch['protein_edit_residue'], data_batch['residue_natoms_backbone'], dim=0)
+
+    data_batch['edit_sidechain'] = data_batch['protein_edit_atom']
+    data_batch['edit_backbone'] = data_batch['protein_edit_atom']
+    index = torch.arange(len(data_batch['amino_acid']))[data_batch['protein_edit_residue']]
+    for k in range(data_batch['atom2residue'].max() + 1):
+        mask = data_batch['atom2residue'] == k
+        if k in index:
+            data_batch['edit_sidechain'][mask][:4] = 0
+            data_batch['edit_backbone'][mask][4:] = 0
+    return data_batch
+
+
+def collate_mols_simple(mol_dicts):
+    data_batch = {}
+    batch_size = len(mol_dicts)
+    for key in ['protein_pos', 'protein_atom_feature', 'ligand_pos', 'ligand_atom_feature_full', 'vina']:
+        data_batch[key] = torch.cat([mol_dict[key] for mol_dict in mol_dicts], dim=0).float()
+
+    # follow batch
+    for key in ['protein_element', 'ligand_element']:
+        repeats = torch.tensor([len(mol_dict[key]) for mol_dict in mol_dicts])
+        data_batch[key + '_batch'] = torch.repeat_interleave(torch.arange(batch_size), repeats)
+
+    return data_batch
+
