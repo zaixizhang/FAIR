@@ -224,7 +224,7 @@ class PDBProtein(object):
                 selected.append(residue)
         return selected
 
-    def query_residues_ligand(self, ligand, radius=3.5):
+    def query_residues_ligand(self, ligand, radius=5.0):
         sel_idx = set()
         selected = np.zeros(len(self.residues), dtype=bool)
         # The time-complexity is O(mn).
