@@ -25,7 +25,7 @@ The model hyperparameters can be adjusted in `config`.
 python train.py
 ```
 
-## Testing
+## Checkpoint and Testing
 A checkpoint of our model is provided in the `checkpoint` folder.
 ```
 python test.py
