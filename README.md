@@ -36,6 +36,9 @@ Expected results on the CrossDocked dataset:
 |-------|-------|
 | 40.8\% ± 10.9 \% | 1.44 ± 0.06 |
 
+## Latest Version
+We'd like to thank you for the suggestions and discussions of experimental settings. In our latest version, we do not use the original backbone for reference and obtain comparable results after retraining. The code will be released soon after the organization.
+
 ## Citation
 ```
 @article{zhang2023full,
