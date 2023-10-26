@@ -223,7 +223,7 @@ class ProteinFeatures(nn.Module):
 
     def forward(self, pos_ligand_coarse, edit_residue, X, S_id, batch):
         """ Featurize coordinates as an attributed graph """
-        X_ca = X[:,1,:]
+        X_ca = X
         edge_index = knn_graph(X_ca, k=self.top_k, batch=batch, flow='target_to_source')
         edge_length = torch.norm(X_ca[edge_index[0]] - X_ca[edge_index[1]], dim=1)
         RBF = self._rbf(edge_length)

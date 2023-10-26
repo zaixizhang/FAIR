@@ -68,11 +68,30 @@ def nearest(residue_mask):
         else:
             index[i][1] = q
     return index
+    
+    
+def quaternion_to_matrix(q):
+    """Convert a quaternion to its corresponding rotation matrix."""
+    q = q / q.norm()
+    w, x, y, z = q
+    R = torch.zeros((3, 3), device=q.device)
+    R[0, 0] = 1 - 2 * (y ** 2 + z ** 2)
+    R[0, 1] = 2 * (x * y - z * w)
+    R[0, 2] = 2 * (x * z + y * w)
+    R[1, 0] = 2 * (x * y + z * w)
+    R[1, 1] = 1 - 2 * (x ** 2 + z ** 2)
+    R[1, 2] = 2 * (y * z - x * w)
+    R[2, 0] = 2 * (x * z - y * w)
+    R[2, 1] = 2 * (y * z + x * w)
+    R[2, 2] = 1 - 2 * (x ** 2 + y ** 2)
+    return R
 
 
-def interpolation_init(pred_X, residue_mask, backbone_pos, atom2residue, protein_atom_batch, residue_batch):
-    num_protein = protein_atom_batch.max().item() + 1
+def interpolation_init(res_X, residue_mask, backbone_pos, atom2residue, protein_atom_batch, residue_batch):
+    num_protein = residue_batch.max().item() + 1
     offset = 0
+    backbone = torch.tensor([[-0.525, 1.363, 0.0], [0.0, 0.0, 0.0], [1.526, 0.0, 0.0], [0.627, 1.062, 0.0]],
+                            device=res_X.device)
     for i in range(num_protein):
         residue_mask_i = residue_mask[residue_batch == i]
         backbone_pos_i = backbone_pos[residue_batch == i]
@@ -80,7 +99,7 @@ def interpolation_init(pred_X, residue_mask, backbone_pos, atom2residue, protein
             offset += len(residue_mask_i)
             continue
         else:
-            residue_index = torch.arange(len(residue_mask_i)).to(protein_atom_batch.device)
+            residue_index = torch.arange(len(residue_mask_i)).to(res_X.device)
             front = residue_index[~residue_mask_i][:2]
             end = residue_index[~residue_mask_i][-2:]
             near = nearest(residue_mask_i)
@@ -88,14 +107,15 @@ def interpolation_init(pred_X, residue_mask, backbone_pos, atom2residue, protein
                 if residue_mask_i[k]:
                     mask = atom2residue == (k + offset)
                     if k < front[0]:
-                        pred_X[mask] = backbone_pos_i[front[0]] + (k - front[0]) / (front[0] - front[1]) * (backbone_pos_i[front[0]] - backbone_pos_i[front[1]])
+                        alpha = (backbone_pos_i[front[0]] + (k - front[0]) / (front[0] - front[1]) * (backbone_pos_i[front[0]] - backbone_pos_i[front[1]]))[1: 2]
                     elif k > end[1]:
-                        pred_X[mask] = backbone_pos_i[end[1]] + (k - end[1]) / (end[1] - end[0]) * (backbone_pos_i[end[1]] - backbone_pos_i[end[0]])
+                        alpha = (backbone_pos_i[end[1]] + (k - end[1]) / (end[1] - end[0]) * (backbone_pos_i[end[1]] - backbone_pos_i[end[0]]))[1: 2]
                     else:
-                        pred_X[mask] = ((k - near[k][0]) * backbone_pos_i[near[k][1]] + (near[k][1] - k) * backbone_pos_i[near[k][0]]) * 1 / (near[k][1] - near[k][0])
+                        alpha = (((k - near[k][0]) * backbone_pos_i[near[k][1]] + (near[k][1] - k) * backbone_pos_i[near[k][0]]) * 1 / (near[k][1] - near[k][0]))[1: 2]
+                    res_X[mask][:4] = alpha + backbone @ quaternion_to_matrix(q=torch.randn(4, device=res_X.device)).t()
             offset += len(residue_mask_i)
 
-    return pred_X
+    return res_X
 
 
 class Pocket_Design(Module):
@@ -174,7 +194,8 @@ class Pocket_Design(Module):
             pred_X = (1 - ratio) * label_X + ratio * pred_X
 
             h_ctx, pos_ctx, batch_ctx, mask_protein = self.compose(copy.deepcopy(batch), self.pred_res_type.detach(), pred_X, pred_ligand, backbone=True)
-            h_ctx, h_residue, pred_X, pred_ligand = self.encoder(node_attr=h_ctx, pos=pos_ctx, batch_ctx=batch_ctx,
+            alpha_pos = alpha(pred_X, batch['atom2residue_backbone'])
+            h_ctx, h_residue, pred_X, pred_ligand = self.encoder(node_attr=h_ctx, pos=pos_ctx, alpha_pos=alpha_pos, batch_ctx=batch_ctx,
                                                                  batch=copy.deepcopy(batch), mask_protein=mask_protein,
                                                                  pred_res_type=self.pred_res_type.detach(),
                                                                  external_index=external_index, backbone=True)
@@ -201,14 +222,15 @@ class Pocket_Design(Module):
                     pred_X[mask] = pos
 
             h_ctx, pos_ctx, batch_ctx, mask_protein = self.compose(copy.deepcopy(batch), self.pred_res_type.detach(), pred_X, pred_ligand, backbone=False)
-            h_ctx, h_residue, pred_X, pred_ligand = self.encoder(node_attr=h_ctx, pos=pos_ctx, batch_ctx=batch_ctx,
+            alpha_pos = alpha(pred_X, batch['atom2residue'])
+            h_ctx, h_residue, pred_X, pred_ligand = self.encoder(node_attr=h_ctx, pos=pos_ctx, alpha_pos=alpha_pos,batch_ctx=batch_ctx,
                                                         batch=copy.deepcopy(batch), mask_protein=mask_protein,
                                                         pred_res_type=self.pred_res_type.detach(),
                                                         external_index=external_index1, backbone=False)
             loss_list[0] += self.huber_loss(pred_X[atom_mask], label_X[atom_mask]) + self.huber_loss(pred_ligand, label_ligand)
             loss_list[1] += self.pred_loss(self.residue_mlp(h_residue[random_mask]), batch['amino_acid'][random_mask] - 1)
 
-        return loss_list[1] + loss_list[0], loss_list
+        return loss_list[1] * 3 + loss_list[0] * 0.5, loss_list
 
     def generate(self, batch):
         print('Start Generating')
@@ -224,9 +246,10 @@ class Pocket_Design(Module):
         pred_X = interpolation_init(pred_X, residue_mask, batch['residue_pos'], batch['atom2residue_backbone'],
                                     batch['protein_atom_batch_backbone'], batch['amino_acid_batch'])
         for t in range(5):
+            alpha_pos = alpha(pred_X, batch['atom2residue_backbone'])
             h_ctx, pos_ctx, batch_ctx, mask_protein = self.compose(copy.deepcopy(batch), self.pred_res_type, pred_X,
                                                                    batch['ligand_pos'], backbone=True)
-            h_ctx, h_residue, pred_X, batch['ligand_pos'] = self.encoder(node_attr=h_ctx, pos=pos_ctx, batch_ctx=batch_ctx,
+            h_ctx, h_residue, pred_X, batch['ligand_pos'] = self.encoder(node_attr=h_ctx, pos=pos_ctx, alpha_pos=alpha_pos, batch_ctx=batch_ctx,
                                                             batch=copy.deepcopy(batch), mask_protein=mask_protein,
                                                             pred_res_type=self.pred_res_type,
                                                             external_index=external_index, backbone=True)
@@ -247,7 +270,8 @@ class Pocket_Design(Module):
                                                          copy.deepcopy(batch['protein_edit_atom']))
             for s in range(5):  # refinement steps
                 h_ctx, pos_ctx, batch_ctx, mask_protein = self.compose_test(batch)
-                h_ctx, h_residue, batch['protein_pos'], batch['ligand_pos'] = self.encoder(node_attr=h_ctx, pos=pos_ctx, batch_ctx=batch_ctx,
+                alpha_pos = alpha(batch['protein_pos'], batch['atom2residue'])
+                h_ctx, h_residue, batch['protein_pos'], batch['ligand_pos'] = self.encoder(node_attr=h_ctx, pos=pos_ctx, alpha_pos=alpha_pos, batch_ctx=batch_ctx,
                                                                       batch=copy.deepcopy(batch),
                                                                       mask_protein=mask_protein,
                                                                       pred_res_type=self.pred_res_type.detach(),
@@ -263,7 +287,8 @@ class Pocket_Design(Module):
             h_ctx, pos_ctx, batch_ctx, mask_protein = self.compose(batch, self.pred_res_type.detach(),
                                                                    batch['protein_pos'], batch['ligand_pos'],
                                                                    backbone=False)
-            h_ctx, h_residue, batch['protein_pos'], batch['ligand_pos'] = self.encoder(node_attr=h_ctx, pos=pos_ctx, batch_ctx=batch_ctx,
+            alpha_pos = alpha(batch['protein_pos'], batch['atom2residue'])
+            h_ctx, h_residue, batch['protein_pos'], batch['ligand_pos'] = self.encoder(node_attr=h_ctx, pos=pos_ctx, alpha_pos=alpha_pos, batch_ctx=batch_ctx,
                                                                   batch=copy.deepcopy(batch), mask_protein=mask_protein,
                                                                   pred_res_type=self.pred_res_type.detach(),
                                                                   external_index=external_index1, backbone=False)
@@ -359,6 +384,15 @@ def atom_feature(res_type, device):
     amino_acid = F.one_hot(res_type, num_classes=max_num_aa).repeat(NUM_ATOMS[res_type], 1)
     x = torch.cat([atom_type.to(device), amino_acid], dim=-1)
     return x
+    
+    
+def alpha(protein_pos, atom2residue):
+    num_residues = atom2residue.max() + 1
+    pos_tmp = []
+    for k in range(num_residues):
+        mask = atom2residue == k
+        pos_tmp.append(protein_pos[mask][1:2])
+    return torch.cat(pos_tmp, dim=0)
 
 
 def write_pdb(protein_pos, amino_acid, atom_name, res_batch):
