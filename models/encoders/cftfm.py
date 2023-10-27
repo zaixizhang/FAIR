@@ -301,7 +301,7 @@ class HierEncoder(Module):
     def out_channels(self):
         return self.hidden_channels
 
-    def forward(self, node_attr, pos, alpha_pos, batch_ctx, batch, pred_res_type, mask_protein, external_index, backbone=True, mask=True):
+    def forward(self, node_attr, pos, batch_ctx, batch, pred_res_type, mask_protein, external_index, backbone=True, mask=True):
         S_id, R = batch['res_idx'], batch['amino_acid']
         residue_batch, atom2residue = batch['amino_acid_batch'], batch['atom2residue']
         edit_residue, edit_atom = batch['protein_edit_residue'], batch['protein_edit_atom']
@@ -325,7 +325,7 @@ class HierEncoder(Module):
 
         h_ligand_coarse = scatter_sum(h[~mask_protein], batch['ligand_atom_batch'], dim=0)
         pos_ligand_coarse = scatter_sum(batch['ligand_pos'], batch['ligand_atom_batch'], dim=0)
-        E, residue_edge_index, residue_edge_length, edge_index_new, E_new = self.features(pos_ligand_coarse, batch['protein_edit_residue'], alpha_pos, S_id, residue_batch)
+        E, residue_edge_index, residue_edge_length, edge_index_new, E_new = self.features(pos_ligand_coarse, batch['protein_edit_residue'], batch['residue_pos'], S_id, residue_batch)
         h_protein = h[mask_protein]
         V = torch.cat([self.residue_feat.soft_forward(R), scatter_sum(h_protein, atom2residue, dim=0)], dim=-1)
         h_res = self.W_v(V)

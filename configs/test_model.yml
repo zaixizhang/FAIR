@@ -1,6 +1,6 @@
 model:
   hidden_channels: 128
-  checkpoint: './checkpoints/pretrained1.pt'
+  checkpoint: './checkpoints/pretrained.pt'
   encoder:
     name: hierGT
     hidden_channels: 128
